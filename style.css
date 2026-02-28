@@ -1,0 +1,573 @@
+:root {
+    --ctu-bg: rgba(255, 255, 255, 0.07);
+    --ctu-bg-hover: rgba(255, 255, 255, 0.14);
+    --ctu-bg-solid: rgba(22, 18, 28, 0.85);
+    --ctu-border: rgba(255, 255, 255, 0.12);
+    --ctu-border-hover: rgba(255, 192, 203, 0.45);
+    --ctu-text: rgba(255, 255, 255, 0.92);
+    --ctu-text-muted: rgba(255, 255, 255, 0.5);
+    --ctu-accent: #f9a8c9;
+    --ctu-accent-glow: rgba(249, 168, 201, 0.25);
+    --ctu-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --ctu-shadow-hover: 0 12px 40px rgba(0, 0, 0, 0.45);
+    --ctu-radius: 14px;
+    --ctu-radius-sm: 10px;
+    --ctu-blur: blur(16px);
+    --ctu-transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ctu-transition-fast: all 0.18s ease;
+    --ctu-empathic: rgba(167, 210, 255, 0.18);
+    --ctu-empathic-b: rgba(167, 210, 255, 0.5);
+    --ctu-logical: rgba(200, 220, 255, 0.14);
+    --ctu-logical-b: rgba(200, 220, 255, 0.45);
+    --ctu-aggressive: rgba(255, 180, 150, 0.16);
+    --ctu-aggressive-b: rgba(255, 180, 150, 0.5);
+    --ctu-chaotic: rgba(220, 170, 255, 0.16);
+    --ctu-chaotic-b: rgba(220, 170, 255, 0.5);
+}
+
+.ctu-container {
+    margin: 8px 8px 14px;
+    padding: 12px 14px;
+    background: var(--ctu-bg-solid);
+    backdrop-filter: var(--ctu-blur);
+    -webkit-backdrop-filter: var(--ctu-blur);
+    border: 1px solid var(--ctu-border);
+    border-radius: var(--ctu-radius);
+    box-shadow: var(--ctu-shadow);
+    animation: ctu-slide-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+    position: relative;
+    overflow: visible;
+    min-height: fit-content;
+    height: auto !important;
+    display: block !important;
+    visibility: visible !important;
+}
+
+.ctu-container::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--ctu-accent),
+        rgba(167, 210, 255, 0.8),
+        var(--ctu-accent),
+        transparent
+    );
+    opacity: 0.6;
+}
+
+.ctu-container::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: var(--ctu-radius);
+    background: radial-gradient(
+        ellipse at 50% 0%,
+        var(--ctu-accent-glow),
+        transparent 70%
+    );
+    pointer-events: none;
+    z-index: 0;
+}
+
+.ctu-container.ctu-fade-out {
+    animation: ctu-fade-out 0.3s ease forwards;
+}
+
+.ctu-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.ctu-header-icon {
+    color: var(--ctu-accent);
+    font-size: 14px;
+    animation: ctu-pulse 2.5s ease-in-out infinite;
+}
+
+.ctu-header-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--ctu-text-muted);
+    flex: 1;
+}
+
+.ctu-close-btn {
+    background: none;
+    border: none;
+    color: var(--ctu-text-muted);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    transition: var(--ctu-transition-fast);
+    line-height: 1;
+}
+
+.ctu-close-btn:hover {
+    color: var(--ctu-text);
+    background: var(--ctu-bg-hover);
+}
+
+.ctu-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    position: relative;
+    z-index: 2;
+}
+
+@media (max-width: 480px) {
+    .ctu-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ctu-choice-btn {
+    position: relative;
+    background: var(--ctu-bg);
+    border: 1px solid var(--ctu-border);
+    border-radius: var(--ctu-radius-sm);
+    padding: 0;
+    cursor: pointer;
+    text-align: left;
+    overflow: hidden;
+    transition: var(--ctu-transition);
+    animation: ctu-btn-appear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.ctu-btn-inner {
+    padding: 8px 11px;
+    position: relative;
+    z-index: 1;
+}
+
+.ctu-btn-glow {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+    border-radius: var(--ctu-radius-sm);
+}
+
+.ctu-btn-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 5px;
+}
+
+.ctu-btn-icon {
+    font-size: 13px;
+    line-height: 1;
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.2));
+}
+
+.ctu-btn-label {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ctu-text-muted);
+    transition: var(--ctu-transition-fast);
+}
+
+.ctu-btn-text {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
+    color: var(--ctu-text);
+    font-style: italic;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.ctu-choice-btn:hover {
+    border-color: var(--ctu-border-hover);
+    transform: translateY(-3px);
+    box-shadow: var(--ctu-shadow-hover);
+}
+
+.ctu-choice-btn:hover .ctu-btn-glow {
+    opacity: 1;
+}
+
+.ctu-choice-btn:hover .ctu-btn-label {
+    color: var(--ctu-text);
+}
+
+.ctu-choice-btn:active {
+    transform: translateY(0px) scale(0.98);
+}
+
+.ctu-choice-btn.ctu-btn-selected {
+    transform: scale(0.97);
+    opacity: 0.7;
+}
+
+.ctu-choice-btn.ctu-btn-dimmed {
+    opacity: 0.35;
+    filter: blur(1px);
+    pointer-events: none;
+}
+
+.ctu-tone-tender,
+.ctu-tone-empathic {
+    background: var(--ctu-empathic);
+}
+.ctu-tone-tender:hover,
+.ctu-tone-empathic:hover {
+    background: rgba(167, 210, 255, 0.22);
+    border-color: var(--ctu-empathic-b);
+}
+.ctu-tone-tender .ctu-btn-glow,
+.ctu-tone-empathic .ctu-btn-glow {
+    background: radial-gradient(
+        ellipse at 50% 100%,
+        rgba(167, 210, 255, 0.2),
+        transparent 70%
+    );
+}
+.ctu-tone-tender:hover .ctu-btn-label,
+.ctu-tone-empathic:hover .ctu-btn-label {
+    color: #a7d2ff;
+}
+
+.ctu-tone-sharp,
+.ctu-tone-logical {
+    background: var(--ctu-logical);
+}
+.ctu-tone-sharp:hover,
+.ctu-tone-logical:hover {
+    background: rgba(200, 220, 255, 0.2);
+    border-color: var(--ctu-logical-b);
+}
+.ctu-tone-sharp .ctu-btn-glow,
+.ctu-tone-logical .ctu-btn-glow {
+    background: radial-gradient(
+        ellipse at 50% 100%,
+        rgba(200, 220, 255, 0.18),
+        transparent 70%
+    );
+}
+.ctu-tone-sharp:hover .ctu-btn-label,
+.ctu-tone-logical:hover .ctu-btn-label {
+    color: #c8dcff;
+}
+
+.ctu-tone-bold,
+.ctu-tone-aggressive {
+    background: var(--ctu-aggressive);
+}
+.ctu-tone-bold:hover,
+.ctu-tone-aggressive:hover {
+    background: rgba(255, 180, 150, 0.22);
+    border-color: var(--ctu-aggressive-b);
+}
+.ctu-tone-bold .ctu-btn-glow,
+.ctu-tone-aggressive .ctu-btn-glow {
+    background: radial-gradient(
+        ellipse at 50% 100%,
+        rgba(255, 180, 150, 0.2),
+        transparent 70%
+    );
+}
+.ctu-tone-bold:hover .ctu-btn-label,
+.ctu-tone-aggressive:hover .ctu-btn-label {
+    color: #ffb496;
+}
+
+.ctu-tone-wild,
+.ctu-tone-chaotic {
+    background: var(--ctu-chaotic);
+}
+.ctu-tone-wild:hover,
+.ctu-tone-chaotic:hover {
+    background: rgba(220, 170, 255, 0.22);
+    border-color: var(--ctu-chaotic-b);
+}
+.ctu-tone-wild .ctu-btn-glow,
+.ctu-tone-chaotic .ctu-btn-glow {
+    background: radial-gradient(
+        ellipse at 50% 100%,
+        rgba(220, 170, 255, 0.2),
+        transparent 70%
+    );
+}
+.ctu-tone-wild:hover .ctu-btn-label,
+.ctu-tone-chaotic:hover .ctu-btn-label {
+    color: #dcaaff;
+}
+
+.ctu-skeleton-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    position: relative;
+    z-index: 1;
+}
+
+.ctu-skeleton {
+    background: var(--ctu-bg);
+    border: 1px solid var(--ctu-border);
+    border-radius: var(--ctu-radius-sm);
+    padding: 12px 14px;
+    animation: ctu-skeleton-pulse 1.4s ease-in-out infinite;
+}
+
+.ctu-skeleton-line {
+    height: 9px;
+    border-radius: 5px;
+    background: rgba(255, 255, 255, 0.08);
+    margin-bottom: 8px;
+}
+
+.ctu-skeleton-line.short {
+    width: 45%;
+}
+
+.ctu-skeleton-line.medium {
+    width: 70%;
+    margin-bottom: 0;
+}
+
+#ctu-manual-btn.ctu-manual-btn {
+    background: var(--ctu-accent-glow);
+    border: 1px solid rgba(249, 168, 201, 0.4);
+    border-radius: 8px;
+    color: var(--ctu-accent);
+    cursor: pointer;
+    padding: 6px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--ctu-transition-fast);
+    margin-right: 4px;
+    box-shadow: 0 0 8px rgba(249, 168, 201, 0.2);
+    animation: ctu-btn-breathe 3s ease-in-out infinite;
+}
+
+#ctu-manual-btn.ctu-manual-btn:hover {
+    border-color: var(--ctu-accent);
+    color: #fff;
+    background: rgba(249, 168, 201, 0.3);
+    box-shadow: 0 0 16px rgba(249, 168, 201, 0.45);
+    animation: none;
+    transform: translateY(-1px);
+}
+
+#ctu-manual-btn.ctu-manual-btn:active {
+    transform: scale(0.94);
+    animation: none;
+}
+.ctu-settings-panel {
+    background: var(--ctu-bg);
+    border: 1px solid var(--ctu-border);
+    border-radius: var(--ctu-radius);
+    padding: 16px;
+    margin-top: 10px;
+}
+
+.ctu-settings-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--ctu-accent);
+    margin: 0 0 14px;
+    letter-spacing: 0.06em;
+}
+
+.ctu-setting-row {
+    margin-bottom: 12px;
+}
+
+.ctu-setting-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--ctu-text);
+}
+
+.ctu-setting-label input[type="checkbox"] {
+    accent-color: var(--ctu-accent);
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+}
+
+.ctu-setting-row--slider input[type="range"] {
+    width: 100%;
+    margin-top: 8px;
+    accent-color: var(--ctu-accent);
+}
+
+.ctu-settings-btn {
+    background: var(--ctu-accent-glow);
+    border: 1px solid var(--ctu-accent);
+    border-radius: 8px;
+    color: var(--ctu-accent);
+    cursor: pointer;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    transition: var(--ctu-transition-fast);
+    width: 100%;
+}
+
+.ctu-settings-btn:hover {
+    background: rgba(249, 168, 201, 0.2);
+    box-shadow: 0 0 16px var(--ctu-accent-glow);
+}
+
+.ctu-settings-btn:active {
+    transform: scale(0.97);
+}
+
+.ctu-container.ctu-compact {
+    padding: 8px 10px;
+}
+
+.ctu-container.ctu-compact .ctu-header {
+    margin-bottom: 7px;
+}
+
+.ctu-container.ctu-compact .ctu-header-title {
+    font-size: 10px;
+    opacity: 0.6;
+}
+
+.ctu-container.ctu-compact .ctu-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.ctu-container.ctu-compact .ctu-choice-btn {
+    border-radius: 8px;
+}
+
+.ctu-btn-inner--compact {
+    padding: 7px 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    position: relative;
+    z-index: 1;
+}
+
+.ctu-btn-inner--compact .ctu-btn-icon {
+    font-size: 15px;
+}
+
+.ctu-btn-inner--compact .ctu-btn-label {
+    font-size: 9px;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.ctu-container.ctu-compact .ctu-skeleton-grid {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 5px;
+}
+
+.ctu-container.ctu-compact .ctu-skeleton {
+    padding: 10px 6px;
+}
+
+@media (max-width: 400px) {
+    .ctu-container.ctu-compact .ctu-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@keyframes ctu-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(16px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes ctu-fade-out {
+    to {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@keyframes ctu-btn-appear {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes ctu-skeleton-pulse {
+    0%,
+    100% {
+        opacity: 0.6;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+@keyframes ctu-pulse {
+    0%,
+    100% {
+        opacity: 0.7;
+        text-shadow: 0 0 6px var(--ctu-accent);
+    }
+    50% {
+        opacity: 1;
+        text-shadow:
+            0 0 14px var(--ctu-accent),
+            0 0 28px var(--ctu-accent-glow);
+    }
+}
+
+body.light-theme .ctu-container,
+html[data-theme="light"] .ctu-container {
+    --ctu-bg: rgba(0, 0, 0, 0.04);
+    --ctu-bg-hover: rgba(0, 0, 0, 0.07);
+    --ctu-bg-solid: rgba(255, 252, 255, 0.92);
+    --ctu-border: rgba(0, 0, 0, 0.1);
+    --ctu-border-hover: rgba(200, 80, 130, 0.4);
+    --ctu-text: rgba(30, 20, 40, 0.9);
+    --ctu-text-muted: rgba(30, 20, 40, 0.45);
+    --ctu-accent: #c8537a;
+    --ctu-accent-glow: rgba(200, 83, 122, 0.12);
+    --ctu-empathic: rgba(100, 160, 220, 0.1);
+    --ctu-empathic-b: rgba(100, 160, 220, 0.4);
+    --ctu-logical: rgba(130, 160, 220, 0.1);
+    --ctu-logical-b: rgba(130, 160, 220, 0.4);
+    --ctu-aggressive: rgba(220, 110, 70, 0.1);
+    --ctu-aggressive-b: rgba(220, 110, 70, 0.4);
+    --ctu-chaotic: rgba(160, 90, 220, 0.1);
+    --ctu-chaotic-b: rgba(160, 90, 220, 0.4);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+}

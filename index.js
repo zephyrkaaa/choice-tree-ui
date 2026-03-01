@@ -412,13 +412,13 @@ function renderButtons(choices) {
 
         if (s.compactMode) {
             btn.innerHTML = `
-                <div class="ctu-btn-inner ctu-btn-inner--compact">
-                    <span class="ctu-btn-icon">${c.icon || "●"}</span>
-                    <span class="ctu-btn-label">${c.label || c.tone}</span>
-                </div>
-                <div class="ctu-btn-glow"></div>`;
+        <div class="ctu-btn-inner ctu-btn-inner--compact">
+            <span class="ctu-btn-icon">${c.icon || "●"}</span>
+            <span class="ctu-btn-label">${c.label || c.tone}</span>
+        </div>
+        <div class="ctu-btn-glow"></div>`;
             btn.addEventListener("click", () =>
-                applyChoice(c.text || "", false),
+                applyChoice(c.text || "", s.autoSend),
             );
             grid.appendChild(btn);
             return;

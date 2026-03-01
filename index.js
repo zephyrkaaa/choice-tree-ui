@@ -372,6 +372,15 @@ async function generateChoices() {
     }
 }
 
+function escapeHtml(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+}
+
 function renderButtons(choices) {
     removeContainer();
     const s = getSettings();
@@ -395,9 +404,11 @@ function renderButtons(choices) {
     choices.forEach((c, i) => {
         const tone = (c.tone || "tender").toLowerCase();
         const btn = document.createElement("button");
+        btn.type = "button";
         btn.className = `ctu-choice-btn ctu-tone-${tone}`;
         btn.style.animationDelay = `${i * 60}ms`;
         btn.dataset.choiceText = c.text || "";
+        btn.dataset.expanded = "false";
 
         if (s.compactMode) {
             btn.innerHTML = `
@@ -406,31 +417,79 @@ function renderButtons(choices) {
                     <span class="ctu-btn-label">${c.label || c.tone}</span>
                 </div>
                 <div class="ctu-btn-glow"></div>`;
-        } else {
-            const inner = document.createElement("div");
-            inner.className = "ctu-btn-inner";
-            const bh = document.createElement("div");
-            bh.className = "ctu-btn-header";
-            const icon = document.createElement("span");
-            icon.className = "ctu-btn-icon";
-            icon.textContent = c.icon || "●";
-            const label = document.createElement("span");
-            label.className = "ctu-btn-label";
-            label.textContent = c.label || c.tone;
-            const text = document.createElement("p");
-            text.className = "ctu-btn-text";
-            text.textContent = c.text || "";
-            const glow = document.createElement("div");
-            glow.className = "ctu-btn-glow";
-            bh.appendChild(icon);
-            bh.appendChild(label);
-            inner.appendChild(bh);
-            inner.appendChild(text);
-            btn.appendChild(inner);
-            btn.appendChild(glow);
+            btn.addEventListener("click", () =>
+                applyChoice(c.text || "", false),
+            );
+            grid.appendChild(btn);
+            return;
         }
 
-        btn.addEventListener("click", () => selectChoice(c.text || "", btn));
+        btn.innerHTML = `
+            <div class="ctu-btn-inner">
+                <div class="ctu-btn-header">
+                    <span class="ctu-btn-icon">${c.icon || "●"}</span>
+                    <span class="ctu-btn-label">${c.label || c.tone}</span>
+                </div>
+
+                <p class="ctu-btn-text">${escapeHtml(c.text || "")}</p>
+
+                <div class="ctu-btn-full">
+                    <div class="ctu-btn-full-text">${escapeHtml(c.text || "")}</div>
+
+                    <div class="ctu-btn-actions">
+                        <button type="button" class="ctu-action-btn ctu-action-btn--primary" data-act="insert">
+                            Вставить
+                        </button>
+                        <button type="button" class="ctu-action-btn ctu-action-btn--accent" data-act="send">
+                            Отправить
+                        </button>
+                        <button type="button" class="ctu-action-btn" data-act="collapse">
+                            Свернуть
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="ctu-btn-glow"></div>
+        `;
+
+        // Клик по карточке = раскрыть / свернуть
+        btn.addEventListener("click", (event) => {
+            const actionBtn = event.target.closest(".ctu-action-btn");
+            if (actionBtn) return;
+
+            toggleExpandedChoice(btn);
+        });
+
+        // Кнопки внутри раскрытого варианта
+        btn.querySelectorAll(".ctu-action-btn").forEach((actionButton) => {
+            actionButton.addEventListener("click", (event) => {
+                event.stopPropagation();
+
+                const action = actionButton.dataset.act;
+                const text = c.text || "";
+
+                if (action === "insert") {
+                    applyChoice(text, false);
+                    btn.classList.add("ctu-btn-picked");
+                    setTimeout(
+                        () => btn.classList.remove("ctu-btn-picked"),
+                        450,
+                    );
+                    return;
+                }
+
+                if (action === "send") {
+                    applyChoice(text, true);
+                    return;
+                }
+
+                if (action === "collapse") {
+                    btn.classList.remove("ctu-expanded");
+                    btn.dataset.expanded = "false";
+                }
+            });
+        });
+
         grid.appendChild(btn);
     });
 
@@ -448,22 +507,44 @@ function renderButtons(choices) {
     );
 }
 
-function selectChoice(text, btn) {
-    btn.classList.add("ctu-btn-selected");
-    document.querySelectorAll(".ctu-choice-btn").forEach((b) => {
-        if (b !== btn) b.classList.add("ctu-btn-dimmed");
+function toggleExpandedChoice(targetBtn) {
+    const all = document.querySelectorAll(".ctu-choice-btn");
+
+    all.forEach((btn) => {
+        if (btn === targetBtn) return;
+
+        btn.classList.remove("ctu-expanded");
+        btn.dataset.expanded = "false";
     });
-    setTimeout(() => {
-        const ta = document.getElementById("send_textarea");
-        if (ta) {
-            ta.value = text;
-            ta.dispatchEvent(new Event("input", { bubbles: true }));
-            ta.focus();
-        }
+
+    const isExpanded = targetBtn.dataset.expanded === "true";
+    targetBtn.dataset.expanded = isExpanded ? "false" : "true";
+    targetBtn.classList.toggle("ctu-expanded", !isExpanded);
+
+    if (!isExpanded) {
+        setTimeout(() => {
+            targetBtn.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+                inline: "nearest",
+            });
+        }, 80);
+    }
+}
+
+function applyChoice(text, sendNow = false) {
+    const ta = document.getElementById("send_textarea");
+
+    if (ta) {
+        ta.value = text;
+        ta.dispatchEvent(new Event("input", { bubbles: true }));
+        ta.focus();
+    }
+
+    if (sendNow) {
+        document.getElementById("send_but")?.click();
         removeContainer();
-        if (getSettings().autoSend)
-            document.getElementById("send_but")?.click();
-    }, 280);
+    }
 }
 
 function removeContainer() {

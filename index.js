@@ -7,6 +7,9 @@ const DEFAULT_SETTINGS = Object.freeze({
     maxChoices: 4,
     compactMode: false,
     customPrompt: "",
+    apiUrl: "",
+    apiKey: "",
+    apiModel: "",
 });
 
 function getSettings() {
@@ -97,6 +100,72 @@ function injectSettingsPanel() {
 
                     <hr class="sysHR" />
 
+                    <details id="ctu-api-details" style="margin-bottom:8px;">
+                        <summary style="cursor:pointer;font-size:12px;opacity:0.7;padding:4px 0;user-select:none;">
+                            ⚡ API настройки
+                            <span id="ctu-api-status-badge" style="display:none;margin-left:6px;
+                                font-size:10px;background:rgba(80,200,120,0.2);color:#7deba0;
+                                border:1px solid rgba(80,200,120,0.35);border-radius:4px;padding:1px 6px;">
+                                ✓ подключён
+                            </span>
+                        </summary>
+                        <div style="margin-top:8px;display:flex;flex-direction:column;gap:7px;">
+
+                            <div>
+                                <label style="font-size:11px;opacity:0.6;display:block;margin-bottom:3px;">URL (напр. https://api.openai.com/v1)</label>
+                                <input type="text" id="ctu-api-url"
+                                    placeholder="Оставь пустым — используется ST"
+                                    style="width:100%;font-size:11px;background:rgba(255,255,255,0.05);
+                                           border:1px solid rgba(255,255,255,0.15);border-radius:6px;
+                                           padding:6px 8px;color:inherit;box-sizing:border-box;" />
+                            </div>
+
+                            <div>
+                                <label style="font-size:11px;opacity:0.6;display:block;margin-bottom:3px;">API ключ</label>
+                                <input type="password" id="ctu-api-key"
+                                    placeholder="sk-..."
+                                    style="width:100%;font-size:11px;background:rgba(255,255,255,0.05);
+                                           border:1px solid rgba(255,255,255,0.15);border-radius:6px;
+                                           padding:6px 8px;color:inherit;box-sizing:border-box;" />
+                            </div>
+
+                            <input type="button" id="ctu-fetch-models"
+                                   class="menu_button wide100p"
+                                   value="↻ Загрузить модели"
+                                   style="display:none;" />
+
+                            <div id="ctu-model-wrap">
+                                <label style="font-size:11px;opacity:0.6;display:block;margin-bottom:3px;">
+                                    Модель
+                                    <span id="ctu-model-count" style="opacity:0.4;font-size:10px;margin-left:4px;"></span>
+                                </label>
+                                <select id="ctu-api-model-select"
+                                    style="width:100%;font-size:11px;background:rgba(255,255,255,0.07);
+                                           border:1px solid rgba(255,255,255,0.15);border-radius:6px;
+                                           padding:6px 8px;color:inherit;box-sizing:border-box;display:none;">
+                                </select>
+                                <input type="text" id="ctu-api-model"
+                                    placeholder="Введи вручную или загрузи список выше"
+                                    style="width:100%;font-size:11px;background:rgba(255,255,255,0.05);
+                                           border:1px solid rgba(255,255,255,0.15);border-radius:6px;
+                                           padding:6px 8px;color:inherit;box-sizing:border-box;" />
+                            </div>
+
+                            <div id="ctu-api-msg" style="font-size:11px;display:none;padding:5px 8px;
+                                border-radius:6px;"></div>
+
+                            <input type="button" id="ctu-save-api"
+                                   class="menu_button wide100p"
+                                   value="Сохранить API" />
+                            <input type="button" id="ctu-clear-api"
+                                   class="menu_button wide100p"
+                                   value="Очистить API (вернуть ST)"
+                                   style="opacity:0.6;" />
+                        </div>
+                    </details>
+
+                    <hr class="sysHR" />
+
                     <input type="button" id="ctu-generate-now"
                            class="menu_button wide100p"
                            value="✦ Сгенерировать варианты сейчас" />
@@ -112,7 +181,6 @@ function injectSettingsPanel() {
         target.appendChild(panel);
         syncUI();
         bindSettingsEvents();
-        console.log(`[${MODULE_NAME}] ✓ Панель настроек добавлена`);
     } else {
         const obs = new MutationObserver(() => {
             const t =
@@ -140,6 +208,118 @@ function syncUI() {
     if ($("ctu-choices-val")) $("ctu-choices-val").textContent = s.maxChoices;
     if ($("ctu-custom-prompt"))
         $("ctu-custom-prompt").value = s.customPrompt || "";
+    if ($("ctu-api-url")) $("ctu-api-url").value = s.apiUrl || "";
+    if ($("ctu-api-key")) $("ctu-api-key").value = s.apiKey || "";
+    if ($("ctu-api-model")) $("ctu-api-model").value = s.apiModel || "";
+    updateApiStatusBadge();
+}
+
+function updateApiStatusBadge() {
+    const s = getSettings();
+    const badge = document.getElementById("ctu-api-status-badge");
+    const fetchBtn = document.getElementById("ctu-fetch-models");
+    if (!badge) return;
+    const active = !!(s.apiUrl && s.apiKey);
+    badge.style.display = active ? "inline" : "none";
+    if (fetchBtn) fetchBtn.style.display = active ? "block" : "none";
+}
+
+async function fetchAndShowModels() {
+    const s = getSettings();
+    if (!s.apiUrl || !s.apiKey) {
+        showApiMsg("Сначала введи URL и ключ", "warn");
+        return;
+    }
+
+    const fetchBtn = document.getElementById("ctu-fetch-models");
+    if (fetchBtn) fetchBtn.value = "↻ Загружаю...";
+
+    try {
+        const base = s.apiUrl
+            .replace(/\/$/, "")
+            .replace(/\/chat\/completions$/, "");
+        const resp = await fetch(`${base}/models`, {
+            headers: { Authorization: `Bearer ${s.apiKey}` },
+        });
+
+        if (!resp.ok) throw new Error(`${resp.status}`);
+        const data = await resp.json();
+
+        let models = [];
+        if (Array.isArray(data.data)) {
+            models = data.data
+                .map((m) => m.id || m.name)
+                .filter(Boolean)
+                .sort();
+        } else if (Array.isArray(data.models)) {
+            models = data.models
+                .map((m) => m.name || m.id)
+                .filter(Boolean)
+                .sort();
+        }
+
+        if (!models.length) throw new Error("Список моделей пуст");
+
+        populateModelSelect(models);
+        showApiMsg(`✓ Найдено ${models.length} моделей`, "ok");
+    } catch (e) {
+        showApiMsg(`Ошибка: ${e.message}`, "err");
+    } finally {
+        if (fetchBtn) fetchBtn.value = "↻ Загрузить модели";
+    }
+}
+
+function populateModelSelect(models) {
+    const select = document.getElementById("ctu-api-model-select");
+    const input = document.getElementById("ctu-api-model");
+    const counter = document.getElementById("ctu-model-count");
+    const s = getSettings();
+    if (!select) return;
+
+    select.innerHTML = "";
+    models.forEach((m) => {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        if (m === s.apiModel) opt.selected = true;
+        select.appendChild(opt);
+    });
+
+    // Если текущая модель не в списке — добавляем вверх
+    if (s.apiModel && !models.includes(s.apiModel)) {
+        const opt = document.createElement("option");
+        opt.value = s.apiModel;
+        opt.textContent = `${s.apiModel} (текущая)`;
+        opt.selected = true;
+        select.insertBefore(opt, select.firstChild);
+    }
+
+    select.style.display = "block";
+    if (input) input.style.display = "none";
+    if (counter) counter.textContent = `(${models.length})`;
+
+    select.onchange = () => {
+        if (input) input.value = select.value;
+    };
+}
+
+function showApiMsg(text, type) {
+    const el = document.getElementById("ctu-api-msg");
+    if (!el) return;
+    el.textContent = text;
+    el.style.display = "block";
+    el.style.background =
+        type === "ok"
+            ? "rgba(80,200,120,0.12)"
+            : type === "warn"
+              ? "rgba(255,200,80,0.12)"
+              : "rgba(255,80,80,0.12)";
+    el.style.color =
+        type === "ok" ? "#7deba0" : type === "warn" ? "#ffd070" : "#ff8080";
+    clearTimeout(el._t);
+    el._t = setTimeout(() => {
+        el.style.display = "none";
+    }, 4000);
 }
 
 function bindSettingsEvents() {
@@ -184,6 +364,58 @@ function bindSettingsEvents() {
         toastr.info("Промпт сброшен, используется дефолтный");
     });
     $("ctu-generate-now")?.addEventListener("click", generateChoices);
+
+    function autoSaveApi() {
+        const url = $("ctu-api-url")?.value?.trim() || "";
+        const key = $("ctu-api-key")?.value?.trim() || "";
+        s.apiUrl = url;
+        s.apiKey = key;
+        saveSettingsDebounced();
+        updateApiStatusBadge();
+    }
+
+    $("ctu-api-url")?.addEventListener("change", autoSaveApi);
+    $("ctu-api-key")?.addEventListener("change", autoSaveApi);
+
+    $("ctu-fetch-models")?.addEventListener("click", fetchAndShowModels);
+
+    $("ctu-save-api")?.addEventListener("click", () => {
+        s.apiUrl = $("ctu-api-url")?.value?.trim() || "";
+        s.apiKey = $("ctu-api-key")?.value?.trim() || "";
+        const sel = $("ctu-api-model-select");
+        const inp = $("ctu-api-model");
+        s.apiModel =
+            (sel?.style.display !== "none" ? sel?.value : inp?.value)?.trim() ||
+            "";
+        saveSettingsDebounced();
+        updateApiStatusBadge();
+        if (s.apiUrl && s.apiKey) {
+            toastr.success(
+                `API сохранён${s.apiModel ? ` (${s.apiModel})` : ""}!`,
+            );
+        } else {
+            toastr.info("API очищен — используется ST.");
+        }
+    });
+
+    $("ctu-clear-api")?.addEventListener("click", () => {
+        s.apiUrl = "";
+        s.apiKey = "";
+        s.apiModel = "";
+        if ($("ctu-api-url")) $("ctu-api-url").value = "";
+        if ($("ctu-api-key")) $("ctu-api-key").value = "";
+        if ($("ctu-api-model")) $("ctu-api-model").value = "";
+        const sel = $("ctu-api-model-select");
+        if (sel) {
+            sel.innerHTML = "";
+            sel.style.display = "none";
+        }
+        const inp = $("ctu-api-model");
+        if (inp) inp.style.display = "block";
+        saveSettingsDebounced();
+        updateApiStatusBadge();
+        toastr.info("API очищен — используется ST.");
+    });
 }
 
 function buildDefaultPrompt(ctx, count) {
@@ -292,11 +524,78 @@ function buildPrompt() {
     return buildDefaultPrompt(ctx, s.maxChoices);
 }
 
+function fixJsonQuotes(jsonStr) {
+    let result = "";
+    let inString = false;
+    let escaped = false;
+    let keyBuffer = "";
+    let isTextValue = false;
+
+    for (let i = 0; i < jsonStr.length; i++) {
+        const ch = jsonStr[i];
+
+        if (escaped) {
+            result += ch;
+            escaped = false;
+            if (inString) keyBuffer += ch;
+            continue;
+        }
+
+        if (ch === "\\") {
+            result += ch;
+            escaped = true;
+            continue;
+        }
+
+        if (ch === '"') {
+            if (!inString) {
+                inString = true;
+                keyBuffer = "";
+                result += ch;
+            } else {
+                if (isTextValue) {
+                    let j = i + 1;
+                    while (
+                        j < jsonStr.length &&
+                        (jsonStr[j] === " " ||
+                            jsonStr[j] === "\n" ||
+                            jsonStr[j] === "\r")
+                    )
+                        j++;
+                    const next = jsonStr[j];
+                    if (next === "," || next === "}" || next === "]") {
+                        inString = false;
+                        isTextValue = false;
+                        result += ch;
+                    } else {
+                        result += '\\"';
+                    }
+                } else {
+                    inString = false;
+                    const trimmed = keyBuffer.trim();
+                    if (trimmed === "text") {
+                        isTextValue = true;
+                    }
+                    result += ch;
+                    keyBuffer = "";
+                }
+            }
+            continue;
+        }
+
+        result += ch;
+        if (inString) keyBuffer += ch;
+    }
+
+    return result;
+}
+
 function parseChoices(raw) {
     if (!raw?.trim()) return null;
     try {
         let clean = raw
             .replace(/<think>[\s\S]*?<\/think>/gi, "")
+            .replace(/<think>[^]*?(?=\{)/gi, "")
             .replace(/```json\s*/gi, "")
             .replace(/```\s*/gi, "")
             .trim();
@@ -309,9 +608,15 @@ function parseChoices(raw) {
 
         jsonStr = jsonStr.replace(/,\s*([}\]])/g, "$1");
 
-        const data = JSON.parse(jsonStr);
-        if (!Array.isArray(data.choices) || !data.choices.length) return null;
+        let data;
+        try {
+            data = JSON.parse(jsonStr);
+        } catch (_) {
+            jsonStr = fixJsonQuotes(jsonStr);
+            data = JSON.parse(jsonStr);
+        }
 
+        if (!Array.isArray(data.choices) || !data.choices.length) return null;
         return data.choices;
     } catch (e) {
         console.error(
@@ -321,6 +626,45 @@ function parseChoices(raw) {
         );
         return null;
     }
+}
+
+async function callCustomApi(prompt) {
+    const s = getSettings();
+    const baseUrl = s.apiUrl
+        .replace(/\/$/, "")
+        .replace(/\/chat\/completions$/, "");
+    const endpoint = `${baseUrl}/chat/completions`;
+
+    const sel = document.getElementById("ctu-api-model-select");
+    const modelFromSelect = sel?.style.display !== "none" ? sel?.value : null;
+    const model = modelFromSelect || s.apiModel || "gpt-4o-mini";
+
+    const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${s.apiKey}`,
+        },
+        body: JSON.stringify({
+            model: model,
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.9,
+            max_tokens: 1000,
+        }),
+    });
+
+    const data = await response.json();
+
+    if (data.error) {
+        const msg = data.error.message || JSON.stringify(data.error);
+        throw new Error(msg);
+    }
+
+    if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+    }
+
+    return data.choices?.[0]?.message?.content || null;
 }
 
 async function generateChoices() {
@@ -336,7 +680,6 @@ async function generateChoices() {
         return;
     }
 
-    console.log(`[${MODULE_NAME}] Генерация...`);
     showLoader();
 
     try {
@@ -344,10 +687,15 @@ async function generateChoices() {
         const prompt = buildPrompt();
 
         let result;
-        try {
-            result = await ctx.generateQuietPrompt({ quietPrompt: prompt });
-        } catch {
-            result = await ctx.generateQuietPrompt(prompt, false, false);
+        const s2 = getSettings();
+        if (s2.apiUrl && s2.apiKey) {
+            result = await callCustomApi(prompt);
+        } else {
+            try {
+                result = await ctx.generateQuietPrompt({ quietPrompt: prompt });
+            } catch {
+                result = await ctx.generateQuietPrompt(prompt, false, false);
+            }
         }
 
         if (!result) {
@@ -443,16 +791,12 @@ function renderButtons(choices) {
                         <button type="button" class="ctu-action-btn ctu-action-btn--accent" data-act="send">
                             Отправить
                         </button>
-                        <button type="button" class="ctu-action-btn" data-act="collapse">
-                            Свернуть
-                        </button>
                     </div>
                 </div>
             </div>
             <div class="ctu-btn-glow"></div>
         `;
 
-        // Клик по карточке = раскрыть / свернуть
         btn.addEventListener("click", (event) => {
             const actionBtn = event.target.closest(".ctu-action-btn");
             if (actionBtn) return;
@@ -460,7 +804,6 @@ function renderButtons(choices) {
             toggleExpandedChoice(btn);
         });
 
-        // Кнопки внутри раскрытого варианта
         btn.querySelectorAll(".ctu-action-btn").forEach((actionButton) => {
             actionButton.addEventListener("click", (event) => {
                 event.stopPropagation();
@@ -621,12 +964,10 @@ function bindHooks() {
 }
 
 (function init() {
-    console.log(`[${MODULE_NAME}] v4.0 Загрузка...`);
     const { eventSource, event_types } = SillyTavern.getContext();
     eventSource.on(event_types.APP_READY, () => {
         injectSettingsPanel();
         injectButton();
         bindHooks();
-        console.log(`[${MODULE_NAME}] ✦ Готов`);
     });
 })();

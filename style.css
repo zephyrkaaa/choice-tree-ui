@@ -144,8 +144,6 @@
     cursor: pointer;
     text-align: left;
     overflow: visible;
-    transition: var(--ctu-transition);
-    animation: ctu-btn-appear 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
     height: 70px;
 }
 
@@ -324,32 +322,6 @@
     }
 }
 
-/* Expand toggle — кнопка ▼ в правом верхнем углу */
-.ctu-expand-toggle {
-    position: absolute;
-    top: 6px;
-    right: 6px;
-    background: rgba(255, 255, 255, 0.1);
-    border: none;
-    border-radius: 4px;
-    color: var(--ctu-text-muted);
-    cursor: pointer;
-    font-size: 8px;
-    line-height: 1;
-    padding: 2px 4px;
-    z-index: 10;
-    transition: var(--ctu-transition-fast);
-}
-
-.ctu-expand-toggle:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: var(--ctu-accent);
-}
-
-.ctu-btn-text--expanded {
-    -webkit-line-clamp: unset !important;
-    overflow: visible !important;
-}
 
 .ctu-choice-btn:hover {
     border-color: var(--ctu-border-hover);
@@ -526,62 +498,11 @@
     margin-top: 10px;
 }
 
-.ctu-settings-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--ctu-accent);
-    margin: 0 0 14px;
-    letter-spacing: 0.06em;
-}
 
-.ctu-setting-row {
-    margin-bottom: 12px;
-}
 
-.ctu-setting-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    cursor: pointer;
-    font-size: 13px;
-    color: var(--ctu-text);
-}
 
-.ctu-setting-label input[type="checkbox"] {
-    accent-color: var(--ctu-accent);
-    width: 15px;
-    height: 15px;
-    cursor: pointer;
-}
 
-.ctu-setting-row--slider input[type="range"] {
-    width: 100%;
-    margin-top: 8px;
-    accent-color: var(--ctu-accent);
-}
 
-.ctu-settings-btn {
-    background: var(--ctu-accent-glow);
-    border: 1px solid var(--ctu-accent);
-    border-radius: 8px;
-    color: var(--ctu-accent);
-    cursor: pointer;
-    padding: 8px 16px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    transition: var(--ctu-transition-fast);
-    width: 100%;
-}
-
-.ctu-settings-btn:hover {
-    background: rgba(249, 168, 201, 0.2);
-    box-shadow: 0 0 16px var(--ctu-accent-glow);
-}
-
-.ctu-settings-btn:active {
-    transform: scale(0.97);
-}
 
 .ctu-container.ctu-compact {
     padding: 8px 10px;
@@ -641,6 +562,17 @@
     }
 }
 
+@keyframes ctu-btn-breathe {
+    0%, 100% {
+        box-shadow: 0 0 6px rgba(249, 168, 201, 0.15);
+        border-color: rgba(249, 168, 201, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 14px rgba(249, 168, 201, 0.4);
+        border-color: rgba(249, 168, 201, 0.6);
+    }
+}
+
 @keyframes ctu-slide-in {
     from {
         opacity: 0;
@@ -659,16 +591,6 @@
     }
 }
 
-@keyframes ctu-btn-appear {
-    from {
-        opacity: 0;
-        transform: translateY(12px) scale(0.95);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0) scale(1);
-    }
-}
 
 @keyframes ctu-skeleton-pulse {
     0%,

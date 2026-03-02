@@ -3,7 +3,6 @@ const MODULE_NAME = "choice-tree-ui";
 const DEFAULT_SETTINGS = Object.freeze({
     enabled: true,
     autoGenerate: true,
-    autoSend: false,
     maxChoices: 4,
     compactMode: false,
     customPrompt: "",
@@ -56,11 +55,6 @@ function injectSettingsPanel() {
                     <label class="checkbox_label">
                         <input type="checkbox" id="ctu-auto-generate" />
                         <span>Автогенерация после ответа AI</span>
-                    </label>
-
-                    <label class="checkbox_label">
-                        <input type="checkbox" id="ctu-auto-send" />
-                        <span>Автоотправка выбранного варианта</span>
                     </label>
 
                     <label class="checkbox_label" title="Показывает только кнопки без текста вариантов. Текст всё равно генерируется и вставляется при нажатии.">
@@ -202,12 +196,11 @@ function syncUI() {
     const $ = (id) => document.getElementById(id);
     if ($("ctu-enabled")) $("ctu-enabled").checked = s.enabled;
     if ($("ctu-auto-generate")) $("ctu-auto-generate").checked = s.autoGenerate;
-    if ($("ctu-auto-send")) $("ctu-auto-send").checked = s.autoSend;
     if ($("ctu-compact-mode")) $("ctu-compact-mode").checked = s.compactMode;
     if ($("ctu-max-choices")) $("ctu-max-choices").value = s.maxChoices;
     if ($("ctu-choices-val")) $("ctu-choices-val").textContent = s.maxChoices;
     if ($("ctu-custom-prompt"))
-        $("ctu-custom-prompt").value = s.customPrompt || "";
+        $("ctu-custom-prompt").value = s.customPrompt || DEFAULT_PROMPT_TEMPLATE;
     if ($("ctu-api-url")) $("ctu-api-url").value = s.apiUrl || "";
     if ($("ctu-api-key")) $("ctu-api-key").value = s.apiKey || "";
     if ($("ctu-api-model")) $("ctu-api-model").value = s.apiModel || "";
@@ -285,7 +278,6 @@ function populateModelSelect(models) {
         select.appendChild(opt);
     });
 
-    // Если текущая модель не в списке — добавляем вверх
     if (s.apiModel && !models.includes(s.apiModel)) {
         const opt = document.createElement("option");
         opt.value = s.apiModel;
@@ -335,10 +327,6 @@ function bindSettingsEvents() {
         s.autoGenerate = e.target.checked;
         saveSettingsDebounced();
     });
-    $("ctu-auto-send")?.addEventListener("change", (e) => {
-        s.autoSend = e.target.checked;
-        saveSettingsDebounced();
-    });
     $("ctu-compact-mode")?.addEventListener("change", (e) => {
         s.compactMode = e.target.checked;
         saveSettingsDebounced();
@@ -351,17 +339,15 @@ function bindSettingsEvents() {
     });
     $("ctu-save-prompt")?.addEventListener("click", () => {
         const val = $("ctu-custom-prompt")?.value?.trim() || "";
-        s.customPrompt = val;
+        s.customPrompt = (val === DEFAULT_PROMPT_TEMPLATE.trim()) ? "" : val;
         saveSettingsDebounced();
-        toastr.success(
-            val ? "Промпт сохранён!" : "Промпт сброшен, используется дефолтный",
-        );
+        toastr.success("Промпт сохранён!");
     });
     $("ctu-reset-prompt")?.addEventListener("click", () => {
         s.customPrompt = "";
-        if ($("ctu-custom-prompt")) $("ctu-custom-prompt").value = "";
+        if ($("ctu-custom-prompt")) $("ctu-custom-prompt").value = DEFAULT_PROMPT_TEMPLATE;
         saveSettingsDebounced();
-        toastr.info("Промпт сброшен, используется дефолтный");
+        toastr.info("Промпт сброшен к дефолтному");
     });
     $("ctu-generate-now")?.addEventListener("click", generateChoices);
 
@@ -418,91 +404,69 @@ function bindSettingsEvents() {
     });
 }
 
+const DEFAULT_PROMPT_TEMPLATE = `You are a roleplay assistant. Write {{count}} response options for {{user}}.
+
+<conversation>
+{{history}}
+</conversation>
+
+<task>
+Write {{count}} options for what {{user}} could say or do next. Answer on last message.
+Match the tone, language and intensity of the current scene exactly.
+</task>
+
+<archetypes>
+[1] 💙 "Tender" — soft, vulnerable, shows through action
+[2] 🧊 "Sharp" — dry, keeps distance, cold as shield or power
+[3] 🔥 "Bold" — confident, takes initiative, drive not aggression
+[4] 🎲 "Wild" — breaks expectations, unpredictable but on point
+</archetypes>
+
+<rules>
+- Keep each option to 1-3 sentences max
+- No clichés, no emotional explanations — only action and words
+- Do NOT write for {{char}}
+- Match the writing style you see in the conversation history
+</rules>
+
+Return ONLY raw JSON, no markdown:
+{"choices":[
+    {{json_template}}
+]}`;
+
 function buildDefaultPrompt(ctx, count) {
     const chat = ctx.chat || [];
     const historyText = chat
         .slice(-8)
         .map((m) => `${m.name}: ${m.mes}`)
         .join("\n\n");
-    const lastCharMsg = [...chat].reverse().find((m) => !m.is_user);
-    const lastCharText = lastCharMsg ? lastCharMsg.mes : "";
     const userName = ctx.name1 || "User";
     const charName = ctx.name2 || "Character";
 
     const archetypes = [
-        {
-            id: 1,
-            tone: "Tender",
-            icon: "💙",
-            label: "Нежный",
-            hint: "Мягкий, уязвимый, показывает через действие. Слова как прикосновение.",
-        },
-        {
-            id: 2,
-            tone: "Sharp",
-            icon: "🧊",
-            label: "Резкий",
-            hint: "Сухой, держит дистанцию. Холодность как защита или власть.",
-        },
-        {
-            id: 3,
-            tone: "Bold",
-            icon: "🔥",
-            label: "Дерзкий",
-            hint: "Уверенный, берёт инициативу. Напор — это желание, не злость.",
-        },
-        {
-            id: 4,
-            tone: "Wild",
-            icon: "🎲",
-            label: "Дикий",
-            hint: "Ломает ожидания. Непредсказуемо, но в точку.",
-        },
+        { id: 1, tone: "Tender", icon: "💙", label: "Нежный" },
+        { id: 2, tone: "Sharp",  icon: "🧊", label: "Резкий"  },
+        { id: 3, tone: "Bold",   icon: "🔥", label: "Дерзкий" },
+        { id: 4, tone: "Wild",   icon: "🎲", label: "Дикий"   },
     ].slice(0, count);
 
-    const archetypeBlock = archetypes
-        .map((a) => `[${a.id}] ${a.icon} "${a.label}" — ${a.hint}`)
-        .join("\n");
     const jsonTemplate = archetypes
-        .map(
-            (a) =>
-                `{"id":${a.id},"tone":"${a.tone}","icon":"${a.icon}","label":"${a.label}","text":"ТЕКСТ"}`,
-        )
+        .map((a) => `{"id":${a.id},"tone":"${a.tone}","icon":"${a.icon}","label":"${a.label}","text":"TEXT"}`)
         .join(",\n    ");
 
-    return `Ты — ассистент для ролевых игр. Напиши ${count} варианта реплики для ${userName}.
-
-═══ СЦЕНА ═══
-${historyText}
-
-═══ ЗАДАЧА ═══
-${userName} отвечает на: «${lastCharText.slice(0, 250)}»
-
-═══ СТИЛЬ ═══
-- Язык: русский. Действия в *звёздочках*, диалог в "кавычках"
-- Длина: 1-3 предложения максимум
-- Show don't tell — никаких объяснений эмоций, только действие/слово
-- Живая, неидеальная речь. Соответствуй тону и интенсивности сцены
-
-═══ АРХЕТИПЫ ═══
-${archetypeBlock}
-
-═══ ЗАПРЕЩЕНО ═══
-- Клише и штампы
-- Повтор образов из последнего сообщения персонажа
-- Писать за ${charName}
-
-Верни ТОЛЬКО JSON без markdown:
-{"choices":[
-    ${jsonTemplate}
-]}`;
+    return DEFAULT_PROMPT_TEMPLATE
+        .replace(/\{\{count\}\}/g, count)
+        .replace(/\{\{history\}\}/g, historyText)
+        .replace(/\{\{user\}\}/g, userName)
+        .replace(/\{\{char\}\}/g, charName)
+        .replace(/\{\{json_template\}\}/g, jsonTemplate);
 }
 
 function buildPrompt() {
     const s = getSettings();
     const ctx = SillyTavern.getContext();
 
-    if (s.customPrompt && s.customPrompt.trim().length > 10) {
+    if (s.customPrompt && s.customPrompt.trim().length > 10 && s.customPrompt.trim() !== DEFAULT_PROMPT_TEMPLATE.trim()) {
         const chat = ctx.chat || [];
         const historyText = chat
             .slice(-8)
@@ -607,6 +571,8 @@ function parseChoices(raw) {
         let jsonStr = clean.slice(start, end + 1);
 
         jsonStr = jsonStr.replace(/,\s*([}\]])/g, "$1");
+        jsonStr = jsonStr.replace(/"<\/([^>]*?)>\s*([},\]])/g, '"$2');
+        jsonStr = jsonStr.replace(/<\/[^>]*?>/g, "");
 
         let data;
         try {
@@ -687,8 +653,7 @@ async function generateChoices() {
         const prompt = buildPrompt();
 
         let result;
-        const s2 = getSettings();
-        if (s2.apiUrl && s2.apiKey) {
+        if (s.apiUrl && s.apiKey) {
             result = await callCustomApi(prompt);
         } else {
             try {
@@ -766,7 +731,7 @@ function renderButtons(choices) {
         </div>
         <div class="ctu-btn-glow"></div>`;
             btn.addEventListener("click", () =>
-                applyChoice(c.text || "", s.autoSend),
+                applyChoice(c.text || ""),
             );
             grid.appendChild(btn);
             return;
@@ -812,7 +777,7 @@ function renderButtons(choices) {
                 const text = c.text || "";
 
                 if (action === "insert") {
-                    applyChoice(text, false);
+                    applyChoice(text);
                     btn.classList.add("ctu-btn-picked");
                     setTimeout(
                         () => btn.classList.remove("ctu-btn-picked"),
@@ -822,14 +787,12 @@ function renderButtons(choices) {
                 }
 
                 if (action === "send") {
-                    applyChoice(text, true);
+                    applyChoice(text);
+                    removeContainer();
+                    document.getElementById("send_but")?.click();
                     return;
                 }
 
-                if (action === "collapse") {
-                    btn.classList.remove("ctu-expanded");
-                    btn.dataset.expanded = "false";
-                }
             });
         });
 
@@ -875,18 +838,12 @@ function toggleExpandedChoice(targetBtn) {
     }
 }
 
-function applyChoice(text, sendNow = false) {
+function applyChoice(text) {
     const ta = document.getElementById("send_textarea");
-
     if (ta) {
         ta.value = text;
         ta.dispatchEvent(new Event("input", { bubbles: true }));
         ta.focus();
-    }
-
-    if (sendNow) {
-        document.getElementById("send_but")?.click();
-        removeContainer();
     }
 }
 
@@ -954,10 +911,6 @@ function bindHooks() {
         if (s.enabled && s.autoGenerate && isInActiveChat()) {
             setTimeout(generateChoices, 500);
         }
-    });
-
-    document.getElementById("send_textarea")?.addEventListener("input", (e) => {
-        if (e.target.value.length > 0) removeContainer();
     });
 
     eventSource.on(event_types.CHAT_CHANGED, removeContainer);
